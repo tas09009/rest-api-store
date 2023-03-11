@@ -3,6 +3,7 @@ import os
 from flask import Flask
 from flask_smorest import Api
 from flask_migrate import Migrate
+from flask_cors import CORS
 from dotenv import load_dotenv
 
 import models
@@ -25,6 +26,7 @@ def create_app(db_url=None):
     app.config["OPENAPI_SWAGGER_UI_URL"] = "https://cdn.jsdelivr.net/npm/swagger-ui-dist/"
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url or os.getenv("DATABASE_URL", "sqlite:///data.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    CORS(app)
     db.init_app(app) # connects app to SQLalchemy
     migrate = Migrate(app, db)
     api = Api(app)

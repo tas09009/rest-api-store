@@ -6,4 +6,5 @@ flask-sqlalchemy
 flask-migrate
 gunicorn
 psycopg2
-psycopg2-binary
+# psycopg2-binary # If Linux OS, replace psycopg2 with this
+flask-cors
