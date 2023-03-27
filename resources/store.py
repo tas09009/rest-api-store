@@ -77,8 +77,8 @@ def generate_dewey_categories_blueprint():
         level_ten = {"name": f"{key}: {val}", "children": []}
         bookshelf_data["children"].append(level_ten)
 
-    book1 = {"name": "Trust", "size": 2074},
-    book2 = {"name": "Nothing to See Here", "size": 2074},
+    book1 = {"name": "Trust", "value": 1},
+    book2 = {"name": "Nothing to See Here", "value": 1},
     bookshelf_data["children"][0]["children"].append(book1)
     bookshelf_data["children"][0]["children"].append(book2)
 
