@@ -1,167 +1,84 @@
 """
-Get csv directly from the "import/export" goodreads page
+Export User's books
 """
 
-
 import requests
+
 # from bs4 import BeautifulSoup
-# from lxml import html
+import re
+from lxml import html
 import csv
-import io
+import time
+from io import StringIO
 
-
-
-
-# cookies = {
-#     'srb_8': '0_ar',
-#     'ccsid': '847-0781147-3836519',
-#     'logged_out_browsing_page_count': '2',
-#     '__qca': 'P0-773872044-1675298241149',
-#     'p': 'CmEVU4Hs1Jw0CNX7H8seJ91q0JMKi-8NAlvScDjXiazhGh_D',
-#     'likely_has_account': 'true',
-#     'allow_behavioral_targeting': 'true',
-#     'session-id': '132-7723043-7117532',
-#     'session-id-time': '2307193819l',
-#     'lc-main': 'en_US',
-#     'ubid-main': '135-0605047-8001544',
-#     'u': 'fFd8Hcz_P6GrCEHbVDE5J4fVTGva4E5rWyytmVX22sDJkVtT',
-#     'csm-sid': '924-5754924-3973708',
-#     'locale': 'en',
-#     '_session_id2': 'f8b35bcd3f4e0ca56c6cef3bc08a63ba',
-# }
-
-# headers = {
-#     'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/111.0',
-#     'Accept': '*/*',
-#     'Accept-Language': 'en-US,en;q=0.5',
-#     'X-CSRF-Token': '5x4O6MstPcx+o/vRj1qnc3dY2AniBTNAPwvtyiFcuwbDyO/Rgxa6coe9I1VGKX1r5+fim3qdrtqzPlyRHkc8xA==',
-#     'Related-Request-Id': '5VBZ1DTDX0AGKHH96GJT',
-#     'X-Requested-With': 'XMLHttpRequest',
-#     'Connection': 'keep-alive',
-#     'Referer': 'https://www.goodreads.com/review/import',
-#     'Sec-Fetch-Dest': 'empty',
-#     'Sec-Fetch-Mode': 'cors',
-#     'Sec-Fetch-Site': 'same-origin',
-#     # 'If-None-Match': 'W/"7e88ddfabf5d9da1f08526faafb4ea75"',
-# }
-
-# # load cookies, TODO: may not need this
-# # requests.get("https://www.goodreads.com/")
-
-# response = requests.head(
-#     'https://www.goodreads.com/review_porter/export/61429830/goodreads_export.csv',
-#     cookies=cookies,
-#     headers=headers,
-# )
-
-
-session = requests.Session()
-homepage_response = session.get('https://www.goodreads.com')
+# homepage_response = session.get('https://www.goodreads.com')
 # session.get('https://www.goodreads.com/review/import')
 
-cookies = {
-    'srb_8': '0_ar',
-    'ccsid': '847-0781147-3836519',
-    'logged_out_browsing_page_count': '2',
-    '__qca': 'P0-773872044-1675298241149',
-    'p': 'CmEVU4Hs1Jw0CNX7H8seJ91q0JMKi-8NAlvScDjXiazhGh_D',
-    'likely_has_account': 'true',
-    'allow_behavioral_targeting': 'true',
-    'session-id': '132-7723043-7117532',
-    'session-id-time': '2307193819l',
-    'lc-main': 'en_US',
-    'ubid-main': '135-0605047-8001544',
-    'u': 'fFd8Hcz_P6GrCEHbVDE5J4fVTGva4E5rWyytmVX22sDJkVtT',
-    'csm-sid': '924-5754924-3973708',
-    'locale': 'en',
-    '_session_id2': '76990736ec0a28b25a2547dbd1eb54ae',
-}
+from selenium import webdriver
+from urllib.request import urlopen
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+
+EXPORT_CSV_BASE_URL = "https://www.goodreads.com/review_porter/export/"
 
 headers = {
-    'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/111.0',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.5',
-    # 'Accept-Encoding': 'gzip, deflate, br',
-    'Connection': 'keep-alive',
-    'Referer': 'https://www.goodreads.com/review/import',
-    # 'Cookie': 'srb_8=0_ar; ccsid=847-0781147-3836519; logged_out_browsing_page_count=2; __qca=P0-773872044-1675298241149; p=CmEVU4Hs1Jw0CNX7H8seJ91q0JMKi-8NAlvScDjXiazhGh_D; likely_has_account=true; allow_behavioral_targeting=true; session-id=132-7723043-7117532; session-id-time=2307193819l; lc-main=en_US; ubid-main=135-0605047-8001544; u=fFd8Hcz_P6GrCEHbVDE5J4fVTGva4E5rWyytmVX22sDJkVtT; csm-sid=924-5754924-3973708; locale=en; _session_id2=76990736ec0a28b25a2547dbd1eb54ae',
-    'Upgrade-Insecure-Requests': '1',
-    'Sec-Fetch-Dest': 'document',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-Site': 'same-origin',
-    'Sec-Fetch-User': '?1',
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Connection": "keep-alive",
+    "Referer": "https://www.goodreads.com/review/import",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "same-origin",
+    "Sec-Fetch-User": "?1",
 }
 
-# session.headers.update(homepage_response.headers)
-# session.cookies.update(homepage_response.cookies)
-cookies_test = {
-    'srb_8': '0_ar',
-    'ccsid': '847-0781147-3836519',
-    'logged_out_browsing_page_count': '2',
-    '__qca': 'P0-773872044-1675298241149', # store and track audience reach
-    'p': 'CmEVU4Hs1Jw0CNX7H8seJ91q0JMKi-8NAlvScDjXiazhGh_D',
-    'likely_has_account': 'true',
-    'allow_behavioral_targeting': 'true',
-    'session-id': '132-7723043-7117532',
-    'session-id-time': '2307193819l',
-    'lc-main': 'en_US',
-    'ubid-main': '135-0605047-8001544',
-    'u': 'fFd8Hcz_P6GrCEHbVDE5J4fVTGva4E5rWyytmVX22sDJkVtT',
-    'csm-sid': '924-5754924-3973708',
-    'locale': 'en',
-    '_session_id2': '76990736ec0a28b25a2547dbd1eb54ae',
-}
+# Add proxies since you can't pass headers into selenium:
+# https://stackoverflow.com/questions/15645093/setting-request-headers-in-selenium
+browser = webdriver.Firefox()
+browser.get("https://www.goodreads.com/user/sign_in")
+buttons = browser.find_elements(By.TAG_NAME, "button")
+amazon_signin_button = buttons[1]
+amazon_signin_button.click()
 
-response_test = session.get(
-    'https://www.goodreads.com/review_porter/export/61429830/goodreads_export.csv',
-    headers=headers,
-    cookies=homepage_response.cookies
+# Sign into Amazon
+original_window = browser.window_handles[0]
+time.sleep(2)
+browser.switch_to.window(browser.window_handles[1])
+email_input = browser.find_element(By.XPATH, '//input[@id="ap_email"]')
+password_input = browser.find_element(By.XPATH, '//input[@id="ap_password"]')
+time.sleep(2)
+email_input.send_keys("taniya.singh12@gmail.com")
+time.sleep(4)
+password_input.send_keys("tansin")
+time.sleep(3)
+submit_button = browser.find_element(By.XPATH, '//input[@id="signInSubmit"]')
+submit_button.send_keys(Keys.ENTER)
+browser.switch_to.window(original_window)
+
+# Good Reads: get user_id & cookies
+time.sleep(7)
+tree = html.fromstring(browser.page_source)
+my_books = tree.xpath('//a[contains(text(), "My Books")]')[0].get("href")
+user_id = "".join(re.findall("\d", my_books))
+session = requests.Session()
+session.headers.update(headers)
+selenium_cookies = browser.get_cookies()
+cookie_dict = {cookie["name"]: cookie["value"] for cookie in selenium_cookies}
+
+
+# TODO: generate a new csv file to download - currently NOT working
+# Response -> Book Model
+session.get(
+    EXPORT_CSV_BASE_URL + user_id,
+    cookies=cookie_dict,
 )
-response_test.request._cookies.get_dict()
-
-
-response_curl = session.get(
-    'https://www.goodreads.com/review_porter/export/61429830/goodreads_export.csv',
-    cookies=cookies,
-    headers=headers,
+exported_books_csv = session.get(
+    EXPORT_CSV_BASE_URL + user_id + "/goodreads_export.csv",
 )
-response_curl.request._cookies.get_dict()
+dataFile = StringIO(exported_books_csv.text)
+csv_reader = csv.reader(dataFile)
 
-
-
-reader = csv.DictReader(io.StringIO(response.text))
-
-# Previous attempt to scrape from "my list" on goodreads
-# -----
-
-# url = "https://www.goodreads.com/review/list/61429830-taniya?ref=nav_mybooks&shelf=read"
-# url_export_books = "https://www.goodreads.com/review/import"
-
-# response = requests.get(url)
-
-# soup = BeautifulSoup(response.content, "html.parser")
-
-# htmlparser = etree.HTMLParser()
-# tree = etree.parse(response.content, htmlparser)
-
-# html_element = html.fromstring(response.text)
-# book_list = "//tr[@class='bookalike review']"
-# -----
-
-# cookies = {
-#     'srb_8': '0_ar',
-#     'ccsid': '847-0781147-3836519',
-#     'logged_out_browsing_page_count': '2',
-#     '__qca': 'P0-773872044-1675298241149',
-#     'p': 'CmEVU4Hs1Jw0CNX7H8seJ91q0JMKi-8NAlvScDjXiazhGh_D',
-#     'likely_has_account': 'true',
-#     'allow_behavioral_targeting': 'true',
-#     'session-id': '132-7723043-7117532',
-#     'session-id-time': '2307193819l',
-#     'lc-main': 'en_US',
-#     'ubid-main': '135-0605047-8001544',
-#     'u': 'fFd8Hcz_P6GrCEHbVDE5J4fVTGva4E5rWyytmVX22sDJkVtT',
-#     'csm-sid': '924-5754924-3973708',
-#     'locale': 'en',
-#     '_session_id2': '76990736ec0a28b25a2547dbd1eb54ae',
-# }
+# for row in csv_reader:
+    # print(row, "\n\n")
